@@ -62,4 +62,4 @@ def aws():
     return render_template("playlist.html", title=p["title"], list_id=p["list_id"], gradient=p["gradient"])
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

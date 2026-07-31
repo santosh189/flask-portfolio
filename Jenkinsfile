@@ -1,48 +1,57 @@
 pipeline {
-    agent any
+     agent any
+    
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('DockerHub')
-        IMAGE_NAME = 'theshubhamgour/flask-portfolio'
+        APP_NAME="python-flask-app"
+        Docker_User_Name="harisantosh"
+        IMAGE_NAME="${Docker_User_Name}"+"/"+"${APP_NAME}"
     }
-
-    stages {
-        stage('Checkout Code') {
-            steps {
-                git 'https://github.com/theshubhamgour/flask-portfolio.git'
+    stages{
+        stage('checkout'){
+            steps{
+                git credentialsId: 'GITHUB-CREDS', url: 'https://github.com/santosh189/flask-portfolio.git'
             }
         }
-
-        stage('Run Lint Test') {
-            steps {
-                sh 'pip3 install --break-system-packages flake8'
-                sh 'flake8 . || true'
-                  }
+        stage('install dependencies') {
+            steps{
+                sh 'pip install -r requirements.txt'
             }
-
-        stage('Build Docker Image') {
-            steps {
+        }
+        stage('debug docker') {
+    steps {
+        sh '''
+        whoami
+        id
+        groups
+        docker --version
+        docker ps
+        ls -l /var/run/docker.sock
+        '''
+    }
+}
+        stage('build docker image') {
+            steps{
                 sh 'docker build -t $IMAGE_NAME:$BUILD_NUMBER .'
             }
         }
-
-        stage('Push to DockerHub') {
-            steps {
-                script {
-                    sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-                    sh 'docker push $IMAGE_NAME:$BUILD_NUMBER'
-                }
-            }
+        stage('upload docker image') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'DockerHub',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_TOKEN'
+        )]) {
+            sh '''
+            echo $DOCKER_TOKEN | docker login -u $DOCKER_USER --password-stdin
+            docker push $IMAGE_NAME:$BUILD_NUMBER
+            '''
         }
-
-        stage('Deploy to Stage') {
+    }
+}
+        stage('deploy to production') {
             steps {
                 sh 'docker run -d -p 5000:5000 $IMAGE_NAME:$BUILD_NUMBER'
             }
         }
-    }
-
-    post {
-        success { echo '✅ Build, Test, and Deploy completed successfully!' }
-        failure { echo '❌ Pipeline failed. Check logs.' }
     }
 }
